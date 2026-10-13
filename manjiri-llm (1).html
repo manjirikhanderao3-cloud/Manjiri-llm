@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>manjiri.llm</title>
+<style>
+:root{--bg:#eef2f3;--ink:#14232b;--mut:#5b6d75;--card:#fff;--line:#cfdadd;--teal:#0f7b6c;--blue:#2a5fa8;--red:#b5483a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1a1f;--ink:#e6eef0;--mut:#93a6ad;--card:#16262d;--line:#2a3d45;--teal:#3fc3ad;--blue:#6ea3e8;--red:#e8806f}}
+:root[data-theme="dark"]{--bg:#0f1a1f;--ink:#e6eef0;--mut:#93a6ad;--card:#16262d;--line:#2a3d45;--teal:#3fc3ad;--blue:#6ea3e8;--red:#e8806f}
+*{box-sizing:inherit}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Avenir Next",Avenir,"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:2.1rem;margin:8px 0 4px;letter-spacing:-.5px}
+h2{font-family:Georgia,serif;font-size:1.25rem;margin:0 0 8px}
+p{margin:0 0 10px}.mut{color:var(--mut)}
+nav{display:flex;gap:6px;margin:18px 0;border-bottom:1px solid var(--line)}
+nav button{flex:1;background:none;border:0;border-bottom:3px solid transparent;color:var(--mut);font:inherit;font-weight:600;padding:10px 4px;cursor:pointer}
+nav button[aria-selected=true]{color:var(--teal);border-color:var(--teal)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+label{display:block;font-weight:600;margin:12px 0 4px}
+select,input[type=range]{width:100%}
+select{padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+.row{display:grid;grid-template-columns:92px 1fr 70px;gap:8px;align-items:center;margin:8px 0;font-size:.95rem}
+.bar{height:22px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;transition:width .35s}
+.big{font-family:Georgia,serif;font-size:1.6rem;color:var(--teal)}
+pre{background:#0f1a1f;color:#d9eef0;padding:14px;border-radius:8px;overflow-x:auto;font-size:.82rem;line-height:1.5}
+.pick{display:block;width:100%;text-align:left;margin:8px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;cursor:pointer}
+.pick:hover{border-color:var(--teal)}
+.ans{border-left:4px solid var(--teal);padding-left:12px}
+.fit{color:var(--teal);font-weight:700}.nofit{color:var(--red);font-weight:700}
+.qi{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}.chip{display:inline-block;margin:4px 4px 0 0;padding:6px 10px;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);font:inherit;font-size:.85rem;cursor:pointer}.chip:hover{border-color:var(--teal)}.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.9rem}td,th{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left}
+</style></head>
+<body><main>
+<h1>manjiri.llm</h1>
+<p class="mut">Fine-tune a big language model on a small GPU. Learn LoRA and QLoRA, size your run, and get a starter script.</p>
+<nav role="tablist">
+<button role="tab" aria-selected="true" data-t="learn">Learn</button>
+<button role="tab" aria-selected="false" data-t="calc">Memory</button>
+<button role="tab" aria-selected="false" data-t="agent">Advisor</button>
+<button role="tab" aria-selected="false" data-t="qa">Q&amp;A</button>
+</nav>
+
+<section id="learn" class="on">
+<div class="card"><h2>LoRA</h2>
+<p>Instead of updating a huge weight matrix <b>W</b> (d × d), LoRA freezes it and learns two thin matrices <b>A</b> (r × d) and <b>B</b> (d × r). The output becomes W·x + (α/r)·B·A·x. With rank r = 16, you train under 1% of the parameters.</p></div>
+<div class="card"><h2>QLoRA</h2>
+<p>QLoRA does the same, but stores the frozen base model in 4-bit (NF4) and keeps the small adapters in 16-bit. Double quantization and paged optimizers cut memory further. A 7B model then fits in about 6 GB.</p></div>
+<div class="card tbl"><table>
+<tr><th></th><th>Full FT</th><th>LoRA</th><th>QLoRA</th></tr>
+<tr><td>Trains</td><td>All weights</td><td>Adapters</td><td>Adapters</td></tr>
+<tr><td>Base weights</td><td>16-bit</td><td>16-bit</td><td>4-bit</td></tr>
+<tr><td>Memory</td><td>Highest</td><td>Medium</td><td>Lowest</td></tr>
+<tr><td>Speed</td><td>Fast</td><td>Fast</td><td>~30% slower</td></tr>
+</table></div>
+</section>
+
+<section id="calc">
+<div class="card">
+<label for="m">Model</label>
+<select id="m"><option value="7">7B (Llama / Mistral class)</option><option value="13">13B</option><option value="70">70B</option></select>
+<label for="r">LoRA rank r: <b id="rv">16</b></label>
+<input type="range" id="r" min="4" max="128" step="4" value="16">
+<label for="t">Adapted layers</label>
+<select id="t"><option value="2">Attention q, v (2 per layer)</option><option value="4" selected>Attention q, k, v, o (4 per layer)</option><option value="7">All linear layers (~7 per layer)</option></select>
+</div>
+<div class="card">
+<p>Trainable parameters: <span class="big" id="tp"></span></p>
+<div id="bars"></div>
+<p class="mut" style="font-size:.85rem">Rough estimate for weights, gradients and optimizer state, plus 15% for activations. Real usage depends on batch size and sequence length.</p>
+</div>
+</section>
+
+<section id="agent">
+<div class="card"><h2>What GPU do you have?</h2>
+<div id="q1">
+<button class="pick" data-v="8">8 GB (laptop / small card)</button>
+<button class="pick" data-v="16">16 GB (Colab T4, RTX 4060 Ti)</button>
+<button class="pick" data-v="24">24 GB (RTX 3090 / 4090)</button>
+<button class="pick" data-v="80">80 GB (A100 / H100)</button>
+</div>
+<div id="q2" hidden><h2>Which model size?</h2>
+<button class="pick" data-s="7">7B</button>
+<button class="pick" data-s="13">13B</button>
+<button class="pick" data-s="70">70B</button></div>
+<div id="out" class="ans" hidden></div>
+<button class="pick" id="again" hidden style="text-align:center;font-weight:600">Start over</button>
+</div>
+</section>
+
+<section id="qa">
+<div class="card"><h2>Ask a question</h2>
+<input class="qi" id="qin" placeholder="e.g. what rank should I use?" aria-label="Ask a question">
+<div id="chips"></div></div>
+<div id="qout"></div>
+</section>
+
+<section id="code" style="display:block">
+<div class="card"><h2>Starter script (QLoRA)</h2>
+<pre>pip install transformers peft bitsandbytes trl datasets
+
+import torch
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model
+
+bnb = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_compute_dtype=torch.bfloat16)
+
+model = AutoModelForCausalLM.from_pretrained(
+    "mistralai/Mistral-7B-v0.1",
+    quantization_config=bnb, device_map="auto")
+
+cfg = LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05,
+    target_modules=["q_proj","k_proj","v_proj","o_proj"],
+    task_type="CAUSAL_LM")
+model = get_peft_model(model, cfg)
+model.print_trainable_parameters()
+# then train with trl.SFTTrainer on your dataset</pre>
+<p class="mut" style="font-size:.85rem">For plain LoRA, drop the quantization_config. Built by Manjiri.</p></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('section:not(#code)').forEach(s=>s.classList.toggle('on',s.id===b.dataset.t));
+});
+const P={7:[4096,32],13:[5120,40],70:[8192,80]};
+function calc(){
+  const n=+$('#m').value,r=+$('#r').value,k=+$('#t').value,[d,L]=P[n];
+  $('#rv').textContent=r;
+  const tr=L*k*2*d*r, trG=tr/1e9;
+  $('#tp').textContent=(tr/1e6).toFixed(1)+'M ('+(tr/(n*1e9)*100).toFixed(2)+'% of model)';
+  const ad=trG*12;
+  const v=[['Full FT',n*16*1.15,'var(--red)'],['LoRA',(n*2+ad)*1.15,'var(--blue)'],['QLoRA',(n*0.55+ad)*1.15,'var(--teal)']];
+  const mx=v[0][1];
+  $('#bars').innerHTML=v.map(x=>`<div class="row"><span>${x[0]}</span><div class="bar"><i style="width:${x[1]/mx*100}%;background:${x[2]}"></i></div><b>${x[1].toFixed(1)} GB</b></div>`).join('');
+}
+['m','r','t'].forEach(i=>$('#'+i).oninput=calc);calc();
+let gpu=0;
+document.querySelectorAll('#q1 .pick').forEach(b=>b.onclick=()=>{gpu=+b.dataset.v;$('#q1').hidden=true;$('#q2').hidden=false});
+document.querySelectorAll('#q2 .pick').forEach(b=>b.onclick=()=>{
+  const n=+b.dataset.s;
+  const full=n*16*1.15,lora=n*2*1.15+n*0.1,q=n*0.55*1.15+n*0.1;
+  let h;
+  if(gpu>=full) h=`<p class="fit">Full fine-tuning fits (~${full.toFixed(0)} GB).</p><p>Still, LoRA is cheaper and much easier to share: adapters are only tens of MB.</p>`;
+  else if(gpu>=lora) h=`<p class="fit">Use LoRA (~${lora.toFixed(0)} GB).</p><p>Start with r=16, alpha=32 on q, k, v, o projections.</p>`;
+  else if(gpu>=q) h=`<p class="fit">Use QLoRA (~${q.toFixed(0)} GB).</p><p>Use NF4, double quantization, bf16 compute, and gradient checkpointing. Keep batch size small and use gradient accumulation.</p>`;
+  else h=`<p class="nofit">${n}B will not fit on ${gpu} GB (needs ~${q.toFixed(0)} GB even with QLoRA).</p><p>Pick a smaller model, or rent a bigger GPU for a few hours.</p>`;
+  $('#q2').hidden=true;$('#out').innerHTML=h;$('#out').hidden=false;$('#again').hidden=false;
+});
+$('#again').onclick=()=>{$('#q1').hidden=false;$('#q2').hidden=true;$('#out').hidden=true;$('#again').hidden=true};
+
+const KB=[
+["What is LoRA?","lora low rank adapter what is","LoRA freezes the base model and trains two small matrices (A and B) added to each chosen layer. You train under 1% of the parameters, so it needs far less memory and the result is a small adapter file."],
+["What is QLoRA?","qlora quantized 4bit 4-bit nf4 what is","QLoRA is LoRA on top of a base model stored in 4-bit (NF4). The adapters stay in 16-bit. It lets a 7B model fine-tune in about 6 GB and a 70B model in about 40 GB."],
+["LoRA vs QLoRA: which should I use?","difference compare vs which choose better","Use LoRA if the 16-bit model fits in your GPU memory: it is faster. Use QLoRA when it does not: it saves about 70% of memory and is roughly 30% slower, with quality close to LoRA."],
+["What rank (r) should I use?","rank r value size choose","Start with r=16. Use 8 for simple style or format changes, and 32 to 64 for harder tasks that add new knowledge. Higher rank means more parameters and memory, with diminishing returns."],
+["What is lora_alpha?","alpha scaling lora_alpha scale","Alpha scales the adapter output by alpha/r. A common choice is alpha = 2 x r (for example r=16, alpha=32). Raise it for a stronger adapter effect, lower it if training is unstable."],
+["Which layers should I target?","target modules layers q_proj v_proj attention mlp","Targeting q_proj, k_proj, v_proj and o_proj is a solid default. Adding the MLP layers (gate, up, down) usually improves quality at the cost of more memory. QLoRA paper results favour all linear layers."],
+["What learning rate should I use?","learning rate lr","For LoRA, try 1e-4 to 2e-4 with a cosine schedule and a short warmup. QLoRA commonly uses 2e-4. If the loss spikes, halve it."],
+["How much data do I need?","data dataset size examples how much samples","For style or format, 500 to 2,000 clean examples can be enough. For a new domain, 5,000 to 50,000. Quality matters more than quantity: clean, consistent examples beat large noisy sets."],
+["How much GPU memory do I need?","gpu memory vram ram need hardware","Rough guide for 7B: full fine-tuning about 100 GB, LoRA about 18 GB, QLoRA about 6 GB. Use the Memory tab to size your own run."],
+["Can I train on Google Colab for free?","colab free t4 kaggle cloud","Yes. A free Colab T4 (16 GB) can QLoRA-tune 7B models. Use a small batch size, gradient checkpointing and a sequence length of 512 to 1024."],
+["What is the difference between fine-tuning and RAG?","rag retrieval fine tuning vs knowledge","Fine-tuning changes how the model behaves (tone, format, skills). RAG gives it fresh facts at answer time from your documents. For up-to-date or private knowledge, RAG is usually better; many projects use both."],
+["How do I merge or share the adapter?","merge adapter share save upload hugging face push","Save with model.save_pretrained(). The adapter is only tens of MB. To publish, push to Hugging Face. To bake it in, load the base model in 16-bit and call merge_and_unload()."],
+["Why is my model overfitting or forgetting?","overfit overfitting forgetting catastrophic loss","Lower the rank and learning rate, train for 1 to 3 epochs, add lora_dropout (0.05 to 0.1), and mix some general data into your set. Watch validation loss and stop when it rises."],
+["Which libraries do I need?","library libraries install peft trl bitsandbytes transformers tools code","Install transformers, peft, trl, datasets and bitsandbytes. Unsloth and Axolotl are faster, easier wrappers around the same ideas."],
+["What are gradient checkpointing and accumulation?","gradient checkpointing accumulation batch memory out of memory oom cuda","Checkpointing trades extra compute for much lower activation memory. Accumulation simulates a big batch by summing gradients over several small ones. Together they fix most out-of-memory errors."]
+];
+const W=t=>t.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(x=>x.length>1);
+function ask(q){
+  const qw=W(q);if(!qw.length)return;
+  const sc=KB.map(e=>{const kw=W(e[0]+' '+e[1]);return[qw.reduce((a,w)=>a+(kw.includes(w)?2:kw.some(k=>k.startsWith(w)&&w.length>2)?1:0),0),e]}).sort((a,b)=>b[0]-a[0]);
+  const top=sc.filter(x=>x[0]>=2).slice(0,2);
+  $('#qout').innerHTML=top.length?top.map(x=>`<div class="card ans"><h2>${x[1][0]}</h2><p>${x[1][2]}</p></div>`).join(''):'<div class="card"><p>I don\'t have an answer for that yet. Try words like rank, alpha, memory, data, Colab or merge, or tap a question below.</p></div>';
+}
+$('#chips').innerHTML=KB.map((e,i)=>`<button class="chip" data-i="${i}">${e[0]}</button>`).join('');
+$('#chips').onclick=e=>{const b=e.target.closest('.chip');if(b){const k=KB[b.dataset.i];$('#qin').value=k[0];$('#qout').innerHTML=`<div class="card ans"><h2>${k[0]}</h2><p>${k[2]}</p></div>`}};
+$('#qin').onkeydown=e=>{if(e.key==='Enter')ask(e.target.value)};
+$('#qin').oninput=e=>{if(e.target.value.length>2)ask(e.target.value);else $('#qout').innerHTML=''};
+</script></body></html>
